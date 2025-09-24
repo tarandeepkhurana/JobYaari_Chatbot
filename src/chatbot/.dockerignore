@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtualenvs
+venv/
+.venv/
+
+# Git
+.git
+.gitignore
+
+# Environment
+.env
+
+# OS junk
+.DS_Store
+
+# Don’t copy model folder (we mount it)
+all-MiniLM-L6-v2/

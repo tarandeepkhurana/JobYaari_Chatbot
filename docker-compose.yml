@@ -1,0 +1,44 @@
+services:
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: chroma_db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./chroma_data:/chroma/chroma
+    restart: always
+
+  scraper:
+    build:
+      context: ./src/scraper
+      dockerfile: Dockerfile
+    container_name: scraper_service
+    volumes:
+      - ./src/chatbot/all-MiniLM-L6-v2:/app/src/chatbot/all-MiniLM-L6-v2
+    depends_on:
+      - chroma
+    restart: always
+
+  chatbot:
+    build:
+      context: ./src/chatbot
+      dockerfile: Dockerfile
+    container_name: chatbot_service
+    volumes:
+      - ./src/chatbot/all-MiniLM-L6-v2:/app/src/chatbot/all-MiniLM-L6-v2
+    ports:
+      - "5000:5000"
+    depends_on:
+      - chroma
+    restart: always
+
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    container_name: frontend_service
+    ports:
+      - "8501:8501"
+    depends_on:
+      - chatbot
+    restart: always

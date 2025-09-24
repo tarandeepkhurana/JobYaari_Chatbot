@@ -1,0 +1,22 @@
+# LangChain Core
+langchain
+langchain-core
+langchain-community
+
+# Google Gemini
+langchain-google-genai
+google-generativeai
+
+# Hugging Face
+langchain-huggingface
+
+# Groq
+langchain-groq
+
+# Env Variables
+python-dotenv
+
+fastapi
+uvicorn
+chromadb
+sentence-transformers
