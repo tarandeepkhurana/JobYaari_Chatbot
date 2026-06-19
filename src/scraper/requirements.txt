@@ -1,5 +1,0 @@
-beautifulsoup4
-selenium
-webdriver_manager
-chromadb
-sentence-transformers

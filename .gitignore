@@ -3,6 +3,8 @@ chroma_data/
 test.py
 .env
 src/chatbot/all-MiniLM-L6-v2/
+vector_utils.py
+test2.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -149,6 +151,14 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Node / frontend
+node_modules/
+src/frontend/node_modules/
+src/frontend/dist/
+src/frontend/.env
+src/frontend/.env.local
+*.tsbuildinfo
 
 # Spyder project settings
 .spyderproject
