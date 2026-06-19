@@ -41,7 +41,7 @@ Backend:
 - Alembic
 - pgvector
 - LangChain
-- OpenAI/Azure OpenAI-compatible LLM and embedding factories
+- OpenAI LLM, transcription, and embedding clients
 - Supabase Postgres and Storage
 
 Frontend:

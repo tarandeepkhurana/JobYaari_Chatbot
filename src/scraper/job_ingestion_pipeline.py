@@ -1,7 +1,7 @@
 import asyncio
 from src.scraper.fetch_all_jobs import fetch_all_jobs
 from src.db.job_ops import upsert_jobs, remove_old_jobs
-from src.utils.embeddings import generate_embeddings_azure_endpoint
+from src.utils.embeddings import generate_embeddings
 import logging
 
 logging.basicConfig(
@@ -26,7 +26,7 @@ async def run_pipeline():
     logger.info(f"Scraped jobs total before dedupe: {len(jobs)}")
     
     # 2. embeddings (async)
-    jobs = await generate_embeddings_azure_endpoint(jobs)
+    jobs = await generate_embeddings(jobs)
 
     # 3. DB write
     await upsert_jobs(jobs)

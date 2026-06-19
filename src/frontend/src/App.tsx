@@ -76,6 +76,8 @@ type JobDetailsResponse = {
   job: Job;
 };
 
+type VoiceState = "idle" | "listening" | "transcribing";
+
 const CATEGORY_OPTIONS = [
   "accounts",
   "ai agent development",
@@ -336,6 +338,25 @@ async function fetchJobDetails(jobId: string) {
   return response.json() as Promise<JobDetailsResponse>;
 }
 
+async function transcribeVoiceInput(session: AuthSession, audio: Blob) {
+  const extension = audio.type.includes("mp4") ? "mp4" : "webm";
+  const formData = new FormData();
+  formData.append("file", audio, `voice-input.${extension}`);
+
+  const response = await fetch(`${API_BASE_URL}/voice/transcribe`, {
+    method: "POST",
+    headers: authHeaders(session),
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || "Voice transcription failed");
+  }
+
+  return response.json() as Promise<{ text: string }>;
+}
+
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -361,6 +382,8 @@ export default function App() {
   const [status, setStatus] = useState("Ready");
   const [chatProgress, setChatProgress] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [resume, setResume] = useState<ResumeData | null>(null);
   const [resumeFileName, setResumeFileName] = useState<string | null>(null);
   const [resumePreviewUrl, setResumePreviewUrl] = useState<string | null>(null);
@@ -376,6 +399,9 @@ export default function App() {
   const categoryMenuRef = useRef<HTMLDetailsElement | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const localResumePreviewUrlRef = useRef<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const voiceStreamRef = useRef<MediaStream | null>(null);
   const accountName =
     authSession?.user.user_metadata?.name ||
     authSession?.user.user_metadata?.full_name ||
@@ -473,6 +499,8 @@ export default function App() {
       if (localResumePreviewUrlRef.current) {
         URL.revokeObjectURL(localResumePreviewUrlRef.current);
       }
+
+      voiceStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
@@ -681,6 +709,117 @@ export default function App() {
     } finally {
       setIsStreaming(false);
     }
+  }
+
+  function stopVoiceTracks() {
+    voiceStreamRef.current?.getTracks().forEach((track) => track.stop());
+    voiceStreamRef.current = null;
+  }
+
+  async function handleRecordedAudio(audio: Blob) {
+    if (!authSession) {
+      return;
+    }
+
+    setVoiceState("transcribing");
+    setVoiceError(null);
+    setStatus("Transcribing...");
+
+    try {
+      const result = await transcribeVoiceInput(authSession, audio);
+      const transcript = result.text.trim();
+
+      if (!transcript) {
+        throw new Error("No speech detected");
+      }
+
+      setInput((current) => {
+        const trimmed = current.trim();
+        return trimmed ? `${trimmed} ${transcript}` : transcript;
+      });
+      setStatus("Transcript ready");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Voice transcription failed";
+      setVoiceError(message);
+      setStatus(message);
+    } finally {
+      stopVoiceTracks();
+      setVoiceState("idle");
+    }
+  }
+
+  async function startVoiceRecording() {
+    if (!authSession || isStreaming || voiceState !== "idle") {
+      return;
+    }
+
+    if (!("mediaDevices" in navigator) || !window.MediaRecorder) {
+      setVoiceError("Voice input is not supported in this browser");
+      setStatus("Voice input is not supported in this browser");
+      return;
+    }
+
+    try {
+      setVoiceError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "";
+      const recorder = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined
+      );
+
+      audioChunksRef.current = [];
+      voiceStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const audio = new Blob(audioChunksRef.current, {
+          type: recorder.mimeType || "audio/webm",
+        });
+        void handleRecordedAudio(audio);
+      };
+
+      recorder.start();
+      setVoiceState("listening");
+      setStatus("Listening...");
+    } catch (error) {
+      stopVoiceTracks();
+      const message =
+        error instanceof Error ? error.message : "Could not access microphone";
+      setVoiceError(message);
+      setStatus(message);
+      setVoiceState("idle");
+    }
+  }
+
+  function stopVoiceRecording() {
+    const recorder = mediaRecorderRef.current;
+
+    if (!recorder || recorder.state === "inactive") {
+      return;
+    }
+
+    recorder.stop();
+    setStatus("Transcribing...");
+    setVoiceState("transcribing");
+  }
+
+  function handleVoiceButtonClick() {
+    if (voiceState === "listening") {
+      stopVoiceRecording();
+      return;
+    }
+
+    void startVoiceRecording();
   }
 
   async function handleResumeChange(fileList: FileList | null) {
@@ -1255,11 +1394,22 @@ export default function App() {
                     </svg>
                   </button>
                   <button
-                    aria-label="Voice input"
-                    className="icon-button"
-                    title="Voice input"
+                    aria-label={
+                      voiceState === "listening"
+                        ? "Stop voice input"
+                        : "Start voice input"
+                    }
+                    className={`icon-button voice-button ${
+                      voiceState === "listening" ? "recording" : ""
+                    }`}
+                    title={
+                      voiceState === "listening"
+                        ? "Stop voice input"
+                        : "Voice input"
+                    }
                     type="button"
-                    onClick={() => setStatus("Voice input coming soon")}
+                    disabled={voiceState === "transcribing" || isStreaming}
+                    onClick={handleVoiceButtonClick}
                   >
                     <svg aria-hidden="true" viewBox="0 0 24 24">
                       <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z" />
@@ -1268,6 +1418,15 @@ export default function App() {
                       <path d="M8 22h8" />
                     </svg>
                   </button>
+                  {voiceState !== "idle" ? (
+                    <span className="voice-status" role="status">
+                      {voiceState === "listening"
+                        ? "Listening..."
+                        : "Transcribing..."}
+                    </span>
+                  ) : voiceError ? (
+                    <span className="voice-status error">{voiceError}</span>
+                  ) : null}
                 </div>
                 <button
                   aria-label="Send message"

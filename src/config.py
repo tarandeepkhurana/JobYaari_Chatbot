@@ -1,13 +1,10 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    # Azure AI Foundry (Unified AI Platform)
-    AZURE_AI_FOUNDRY_PROJECT_ENDPOINT: str
-    AZURE_AI_FOUNDRY_PROJECT_API_KEY: str
-
-    # OpenAI (for embeddings)
+    # OpenAI
     OPENAI_API_KEY: str
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-ada-002"
+    OPENAI_TRANSCRIPTION_MODEL: str = "gpt-4o-mini-transcribe"
 
     # Supabase (PostgreSQL + Vector DB)
     DATABASE_URL: str
