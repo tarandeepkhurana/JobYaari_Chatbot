@@ -2,9 +2,9 @@
 
 JobLens is a job and internship assistant for students, freshers, and early-career candidates.
 
-It combines scraped internship/job listings, resume parsing, hybrid retrieval, and a streaming chat agent so users can search roles, compare matches, inspect full job details, and use their resume as matching context.
+It combines scraped internship/job listings, resume parsing, hybrid retrieval, audio-based query transcription, and a streaming chat agent, allowing users to interact through text or voice, search roles, compare matches, inspect full job details, and use their resume as matching context.
 
-## What Exists Now
+## Core Features
 
 - FastAPI backend with startup warmup for database, LLMs, and agent runtime.
 - React/Vite frontend with Supabase Auth, chat UI, resume preview, job browser, filters, and job detail modal.
@@ -41,7 +41,11 @@ Backend:
 - Alembic
 - pgvector
 - LangChain
-- OpenAI LLM, transcription, and embedding clients
+- OpenAI models:
+  - GPT-5 Mini for the streaming tool-calling job assistant
+  - GPT-4o Mini for resume parsing, query understanding, and LLM reranking
+  - GPT-4o Mini Transcribe for voice input transcription
+  - text-embedding-ada-002 for semantic resume and job embeddings
 - Supabase Postgres and Storage
 
 Frontend:
@@ -100,6 +104,7 @@ src/
     chat.py
     jobs.py
     pdf_upload.py
+    voice.py
   scraper/
     intershala/
     fetch_all_jobs.py
@@ -110,6 +115,7 @@ src/
     resume/
     retrieval/
     streaming/
+    voice/
   utils/
   main.py
 ```
@@ -175,10 +181,3 @@ python -m src.scraper.job_ingestion_pipeline
 ```
 
 The ingestion pipeline deduplicates jobs, builds embedding text, generates embeddings, and upserts active listings into Postgres.
-
-## Notes
-
-- The app name is JobLens.
-- Current searchable listings are from the stored database, primarily Internshala.
-- Voice mode is not implemented yet.
-- Full realtime voice, additional job sources, and application-drafting subagents are future work.

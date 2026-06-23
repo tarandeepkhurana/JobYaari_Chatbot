@@ -4,11 +4,6 @@ from typing import AsyncGenerator
 
 from langchain_core.messages import AIMessage, ToolMessage, BaseMessage, SystemMessage
 
-from src.agent.nodes import (
-    _compact_retrieval_result_for_tool,
-    _summarize_state_for_log,
-    _truncate_for_log,
-)
 from src.agent.state import AgentState
 from src.agent.tools.search_jobs import (
     execute_get_job_details_tool,
@@ -31,6 +26,7 @@ from src.services.llm.prompts import JOBLENS_AGENT_SYSTEM_PROMPT
 logger = logging.getLogger("agent.streaming_agent")
 
 MAX_AGENT_ITERATIONS = 3
+LOG_CONTENT_PREVIEW_CHARS = 300
 
 def _extract_text_part(content) -> str:
     if isinstance(content, list):
@@ -84,6 +80,14 @@ def _compact_retrieval_result_for_tool(result: dict) -> dict:
         "message": result.get("message"),
         "results": [_compact_job_for_tool(job) for job in jobs],
     }
+
+def _truncate_for_log(text: str, limit: int = LOG_CONTENT_PREVIEW_CHARS) -> str:
+    text = text.replace("\n", "\\n")
+
+    if len(text) <= limit:
+        return text
+
+    return f"{text[:limit]}... [truncated {len(text) - limit} chars]"
 
 def _summarize_state_for_log(state: AgentState) -> dict:
     resume = state.get("resume") or {}
